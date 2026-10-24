@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Receipt Scanner</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mu:#6b6a64;--ac:#0f6e56;--acx:#fff;--bd:#dedcd4;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171716;--card:#232321;--tx:#eeede8;--mu:#a09f97;--ac:#3fb28f;--acx:#06251c;--bd:#3a3a36;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#171716;--card:#232321;--tx:#eeede8;--mu:#a09f97;--ac:#3fb28f;--acx:#06251c;--bd:#3a3a36;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 -apple-system,system-ui,Segoe UI,Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 14px}h2{font-size:16px;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
+button,.btn{background:var(--ac);color:var(--acx);border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:600;cursor:pointer;display:inline-block}
+button.sec{background:transparent;color:var(--tx);border:1px solid var(--bd)}
+button:disabled{opacity:.5}
+input{width:100%;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:9px;font:inherit;margin:2px 0 10px}
+label{font-size:13px;color:var(--mu)}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}
+.it{display:grid;grid-template-columns:1fr 56px 78px 30px;gap:6px;align-items:center}
+.it input{margin:0 0 6px}.it button{padding:6px;background:transparent;color:var(--mu)}
+.tw{overflow-x:auto}table{border-collapse:collapse;font-size:13px;white-space:nowrap}
+th,td{border-bottom:1px solid var(--bd);padding:6px 8px;text-align:left}th{color:var(--mu);font-weight:600}
+.tabs{display:flex;gap:6px;margin-bottom:10px}.tabs button{flex:1}
+#msg{color:var(--mu);font-size:14px;min-height:20px}
+img{max-width:100%;border-radius:10px;max-height:220px}
+</style></head><body><main>
+<h1>🧾 Receipt Scanner</h1>
+
+<div class="card">
+  <h2>1. Take a photo</h2>
+  <div class="row">
+    <label class="btn" for="cam" style="text-align:center">📷 Take photo</label>
+    <label class="btn" for="upl" style="text-align:center">🖼 Upload photo</label>
+  </div>
+  <input id="cam" type="file" accept="image/*" capture="environment" hidden>
+  <input id="upl" type="file" accept="image/*" hidden>
+  <button class="sec" id="man" type="button" style="width:100%;margin-top:8px">✍️ Enter manually (no receipt)</button>
+  <div id="msg"></div><div id="prev"></div>
+</div>
+
+<div class="card" id="form" hidden>
+  <h2>2. Check the details</h2>
+  <label>Date</label><input id="date" type="date">
+  <label>Store / establishment</label><input id="store">
+  <label>Sales invoice no.</label><input id="inv">
+  <label>Items (name · qty · amount)</label><div id="items"></div>
+  <button class="sec" id="add" type="button">+ Add item</button>
+  <p><b>Total:</b> <span id="tot">0.00</span></p>
+  <div id="dup" hidden style="background:#fff3cd;color:#5c4400;border-radius:8px;padding:10px;margin:0 0 12px;font-size:14px"></div>
+  <button id="save" type="button">Save receipt</button>
+</div>
+
+<div class="card">
+  <h2>Saved receipts <span id="cnt" style="color:var(--mu)"></span></h2>
+  <div class="tw" id="list"></div>
+</div>
+
+<div class="card">
+  <h2>📊 Report &amp; Download</h2>
+  <div class="row"><div><label>From (receipt date)</label><input id="from" type="date"></div><div><label>To (receipt date)</label><input id="to" type="date"></div></div>
+  <button class="sec" id="clr" type="button" style="margin-bottom:12px">Clear dates</button>
+  <div class="tabs"><button class="sec" id="t1">Sheet 1</button><button class="sec" id="t2">Sheet 2</button><button class="sec" id="t3">Sheet 3</button></div>
+  <div class="tw" id="tbl"></div>
+  <p style="margin:0 0 8px"><a href="https://docs.google.com/spreadsheets/d/1pEPQp7Q8OAv8GwjV8gmoBvQis3o8q_uEMYH09hy0_9k/edit" target="_blank" rel="noopener" style="color:var(--ac)">Open Google Sheet ↗</a></p>
+  <button class="sec" id="snd" type="button" hidden style="width:100%;margin-bottom:8px"></button>
+  <div id="sst" style="font-size:14px;color:var(--mu);margin-bottom:10px"></div>
+  <div class="row" style="margin-top:12px">
+    <button id="dl">⬇ Download all 3 sheets (.xlsx)</button>
+    <button class="sec" id="cp">Copy for Sheets</button>
+  </div>
+  <p style="font-size:13px;color:var(--mu)">The download is one Excel file with all 3 sheets as tabs. Upload it to Google Drive and open with Google Sheets, or use File → Import in Sheets. "Copy for Sheets" copies only the tab you are viewing.</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let sample=null,db=null,col=null,rows=[],tab=1,blob=null;
+const msg=t=>$('msg').textContent=t||'';
+const esc=v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+
+(async()=>{
+  try{sample=await claude.use('sample')}catch(e){}
+  try{
+    db=await claude.use('db');const user=await claude.use('user');
+    if(db&&user){const id=await user.id();col=db.collection('data/users/'+id);
+      col.onSnapshot(s=>{rows=s.docs.filter(d=>d.exists&&d.id.startsWith('r')).map(d=>({id:d.id,...d.data()}));rows.sort((a,b)=>(a.date||'').localeCompare(b.date||''));render()},e=>{$('tbl').textContent='Cannot load saved receipts ('+(e&&e.code)+')'})}
+  }catch(e){}
+  if(!col)$('tbl').textContent='Saving is unavailable in this view; sign in to claude.ai to keep receipts.';
+})();
+
+function shrink(file){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>{const s=Math.min(1,1600/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(b=>b?res(b):rej(),'image/jpeg',.85)};im.onerror=rej;im.src=URL.createObjectURL(file)})}
+
+$('cam').onchange=$('upl').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  e.target.value='';manual=false;
+  try{
+    blob=await shrink(f);$('prev').innerHTML='';const i=new Image();i.src=URL.createObjectURL(blob);$('prev').append(i);
+    $('form').hidden=false;setItems([]);
+    if(!sample){msg('Auto-reading unavailable — type the details below.');return}
+    msg('Reading receipt…');
+    const lim=await sample.limits();
+    if(!lim.images){msg('Image reading unavailable — type the details below.');return}
+    const r=await sample.json('Read this receipt photo. Return ONLY JSON: {"date":"YYYY-MM-DD","store":"","invoice":"sales invoice / OR / receipt number as printed","items":[{"name":"","qty":1,"amount":0}],"total":0}. amount = line total. Use "" or null if unreadable; never guess.',{images:[blob],cache:false});
+    $('date').value=r.date||'';$('store').value=r.store||'';$('inv').value=r.invoice||'';
+    setItems(r.items||[]);msg('Done — please verify against the receipt.');
+  }catch(err){msg('Could not read it ('+(err&&err.code||'error')+'). Fill in manually.')}
+};
+
+function setItems(a){$('items').innerHTML='';(a.length?a:[{}]).forEach(addItem);calc()}
+function addItem(it){
+  const d=document.createElement('div');d.className='it';
+  d.innerHTML='<input class="n" placeholder="Item"><input class="q" type="number" step="any" placeholder="Qty"><input class="a" type="number" step="any" placeholder="Amt"><button type="button">✕</button>';
+  d.querySelector('.n').value=it.name||'';d.querySelector('.q').value=it.qty??1;d.querySelector('.a').value=it.amount??'';
+  d.querySelectorAll('input').forEach(i=>i.oninput=calc);
+  d.querySelector('button').onclick=()=>{d.remove();calc()};$('items').append(d)}
+$('add').onclick=()=>addItem({});
+const getItems=()=>[...document.querySelectorAll('.it')].map(d=>({name:d.querySelector('.n').value.trim(),qty:+d.querySelector('.q').value||1,amount:+d.querySelector('.a').value||0})).filter(i=>i.name||i.amount);
+function calc(){$('tot').textContent=getItems().reduce((s,i)=>s+i.amount,0).toFixed(2);checkDup()}
+
+const SHEET_ID='1pEPQp7Q8OAv8GwjV8gmoBvQis3o8q_uEMYH09hy0_9k',SRV='Google Sheets';
+let mcp=null,syncing=false;
+const sstat=t=>{$('sst').textContent=t;msg(t)};
+function errText(e){const c=e&&e.code;
+  if(c=='approval_required')return 'Google Sheets needs your approval. Tap the Send button and choose Allow.';
+  if(c=='server_not_connected'||c=='needs_reauth')return 'Connect or reconnect Google Sheets in claude.ai Settings → Connectors, then tap Send.';
+  if(c=='not_in_manifest')return 'Google Sheets access was declined for this page. Reopen it and allow access.';
+  return 'Saved here, but the Google Sheet update failed ('+(c||'error')+'). Check the sheet, then tap Send to retry.'}
+async function syncSheet(list){
+  if(!col||syncing||!list.length)return;
+  try{mcp=mcp||await claude.use('mcp')}catch(e){}
+  if(!mcp){sstat('Google Sheets is not available in this view.');return}
+  syncing=true;let n=0;
+  try{
+    for(const r of list){
+      const lab=r.manual?'Manual (no receipt)':'Receipt';
+      if(!r.sheetR){await mcp.callTool(SRV,'append_values',{spreadsheetId:SHEET_ID,range:'Receipts!A:F',values:[[r.date||'',r.store||'',r.invoice||'',r.total??'',r.added||'',lab]]});await col.doc(r.id).update({sheetR:true});r.sheetR=true}
+      if(!r.sheetI){const its=r.items&&r.items.length?r.items:[{}];await mcp.callTool(SRV,'append_values',{spreadsheetId:SHEET_ID,range:'Items!A:H',values:its.map(i=>[r.date||'',r.store||'',r.invoice||'',i.name||'',i.qty??'',i.amount??'',r.added||'',lab])});await col.doc(r.id).update({sheetI:true});r.sheetI=true}
+      n++}
+    sstat('Google Sheet updated ✓ ('+n+' receipt'+(n>1?'s':'')+')')
+  }catch(e){sstat(errText(e))}
+  syncing=false}
+$('snd').onclick=()=>syncSheet(rows.filter(r=>!r.sheetR||!r.sheetI));
+const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const same=(a,b)=>norm(a.store)==norm(b.store)&&(norm(a.invoice)?norm(a.invoice)==norm(b.invoice):(a.date==b.date&&Math.abs((+a.total||0)-(+b.total||0))<.005));
+let ack=false,manual=false;
+$('man').onclick=()=>{manual=true;blob=null;$('prev').innerHTML='';$('form').hidden=false;$('date').value=nowStr().slice(0,10);$('store').value='';$('inv').value='';setItems([]);msg('Manual entry (no receipt). Fill in the details below.');$('form').scrollIntoView({behavior:'smooth'})};
+const dupMatch=()=>{const items=getItems(),c={date:$('date').value,store:$('store').value,invoice:$('inv').value,total:items.reduce((s,i)=>s+i.amount,0)};return (c.store||c.invoice)?rows.find(r=>same(c,r)):null};
+function checkDup(){ack=false;$('save').textContent='Save receipt';const m=dupMatch();$('dup').hidden=!m;if(m)$('dup').textContent='⚠ Possible duplicate: already saved on '+(m.added||'an earlier date')+' ('+(m.store||'?')+', invoice '+(m.invoice||'none')+', total '+(+m.total||0).toFixed(2)+').'}
+$('date').oninput=$('store').oninput=$('inv').oninput=checkDup;
+$('list').onclick=e=>{const b=e.target.closest('button[data-id]');if(!b||!col)return;if(b.dataset.arm){col.doc(b.dataset.id).delete().catch(()=>{})}else{b.dataset.arm=1;b.textContent='Delete?'}};
+$('save').onclick=async()=>{
+  if(!col){msg('Saving unavailable.');return}
+  if(dupMatch()&&!ack){ack=true;$('save').textContent='Save anyway';$('dup').hidden=false;return}
+  const items=getItems();
+  try{const rid='r'+Date.now(),mk=o=>(window._last={id:rid,...o},o);await col.doc(rid).set(mk({date:$('date').value,store:$('store').value.trim(),invoice:$('inv').value.trim(),items,total:+items.reduce((s,i)=>s+i.amount,0).toFixed(2),added:nowStr(),manual}));
+    $('form').hidden=true;$('prev').innerHTML='';ack=false;manual=false;$('save').textContent='Save receipt';msg('Saved ✓');syncSheet([window._last])}catch(e){msg('Save failed: '+(e&&(e.code||e.message)||'unknown'))}
+};
+
+const nowStr=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())};
+const H1=['Date','Store / Establishment','Sales Invoice No.','Total Amount','Date Inputted','Entry Type'];
+const H2=['Date','Store / Establishment','Sales Invoice No.','Item','Qty','Amount','Date Inputted','Entry Type'];
+const fr=()=>rows.filter(r=>(!$('from').value||(r.date&&r.date>=$('from').value))&&(!$('to').value||(r.date&&r.date<=$('to').value)));
+const H3=['Month','No. of Receipts','Total Amount'];
+const sum=()=>{const m={};fr().forEach(r=>{const k=(r.date||'').slice(0,7)||'No date';m[k]=m[k]||[0,0];m[k][0]++;m[k][1]+=+r.total||0});const ks=Object.keys(m).sort();const out=ks.map(k=>[k,m[k][0],+m[k][1].toFixed(2)]);if(ks.length)out.push(['TOTAL',ks.reduce((s,k)=>s+m[k][0],0),+ks.reduce((s,k)=>s+m[k][1],0).toFixed(2)]);return [H3,...out]};
+const data=(t=tab)=>t==3?sum():t==1?[H1,...fr().map(r=>[r.date,r.store,r.invoice,r.total??'',r.added||'',r.manual?'Manual (no receipt)':'Receipt'])]
+  :[H2,...fr().flatMap(r=>(r.items&&r.items.length?r.items:[{}]).map(i=>[r.date,r.store,r.invoice,i.name||'',i.qty??'',i.amount??'',r.added||'',r.manual?'Manual (no receipt)':'Receipt']))];
+function render(){
+  $('cnt').textContent=rows.length?'('+rows.length+')':'';
+  const un=rows.filter(r=>!r.sheetR||!r.sheetI).length;$('snd').hidden=!un;$('snd').textContent='📤 Send '+un+' unsent receipt'+(un>1?'s':'')+' to Google Sheet';
+  const q=v=>String(v??'').replace(/[<&]/g,m=>m=='<'?'&lt;':'&amp;');
+  $('list').innerHTML=rows.length?'<table><tr><th>Date</th><th>Store</th><th>Invoice</th><th>Total</th><th></th></tr>'+rows.map((r,i)=>'<tr><td>'+q(r.date)+'</td><td>'+q(r.store)+'</td><td>'+q(r.invoice||(r.manual?'(manual)':''))+(rows.slice(0,i).some(p=>same(p,r))?' <b style="color:#c0392b">⚠ duplicate</b>':'')+'</td><td>'+q((+r.total||0).toFixed(2))+'</td><td><button class="sec" data-id="'+q(r.id)+'" style="padding:3px 8px;font-size:12px">✕</button></td></tr>').join('')+'</table>':'<span style="color:var(--mu)">No receipts yet.</span>';
+  $('t1').style.background=tab==1?'var(--ac)':'transparent';$('t1').style.color=tab==1?'var(--acx)':'var(--tx)';
+  $('t2').style.background=tab==2?'var(--ac)':'transparent';$('t2').style.color=tab==2?'var(--acx)':'var(--tx)';
+  $('t3').style.background=tab==3?'var(--ac)':'transparent';$('t3').style.color=tab==3?'var(--acx)':'var(--tx)';
+  const d=data();
+  $('tbl').innerHTML=fr().length?'<table><tr>'+d[0].map(h=>'<th>'+h+'</th>').join('')+'</tr>'+d.slice(1).map(r=>'<tr>'+r.map(c=>'<td>'+String(c??'').replace(/[<&]/g,m=>m=='<'?'&lt;':'&amp;')+'</td>').join('')+'</tr>').join('')+'</table>':'<span style="color:var(--mu)">'+(rows.length?'No receipts in this date range.':'No receipts yet.')+'</span>';
+}
+$('from').oninput=$('to').oninput=render;$('clr').onclick=()=>{$('from').value='';$('to').value='';render()};
+$('t1').onclick=()=>{tab=1;render()};$('t2').onclick=()=>{tab=2;render()};$('t3').onclick=()=>{tab=3;render()};
+$('dl').onclick=async()=>{
+  const dl=await claude.use('downloads');if(!dl){msg('Download unavailable.');return}
+  try{
+    if(!window.XLSX){msg('Excel export failed to load.');return}
+    const wb=XLSX.utils.book_new();
+    [['Receipts',1],['Items',2],['Monthly Summary',3]].forEach(([n,t])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(data(t)),n));
+    const f=$('from').value,t2=$('to').value;
+    const name='receipts_'+(f||t2?(f||'start')+'_to_'+(t2||'latest'):'all-dates')+'.xlsx';
+    await dl.save({filename:name,data:XLSX.write(wb,{bookType:'xlsx',type:'array'})});
+  }catch(e){msg('Download failed: '+(e&&(e.code||e.message)||'unknown'))}
+};
+$('cp').onclick=async()=>{
+  try{await navigator.clipboard.writeText(data().map(r=>r.join('\t')).join('\n'));msg('Copied — paste into Google Sheets.')}catch(e){msg('Copy blocked; use Download CSV.')}
+};
+render();
+</script></main></body></html>
